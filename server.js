@@ -47,35 +47,36 @@ app.get('/api/setup-db', async (req, res) => {
         `);
 
         await db.query(`
-            CREATE TABLE IF NOT EXISTS mesas (
+            CREATE TABLE IF NOT EXISTS categorias (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                numero VARCHAR(20) NOT NULL,
-                estado VARCHAR(20) DEFAULT 'disponible'
+                nombre VARCHAR(50) NOT NULL,
+                slug VARCHAR(50) NOT NULL
             );
         `);
 
         await db.query(`TRUNCATE TABLE productos;`);
-        await db.query(`TRUNCATE TABLE mesas;`);
+        await db.query(`TRUNCATE TABLE categorias;`);
 
+        // Insertar categorías estándar
         await db.query(`
-            INSERT INTO mesas (numero, estado) VALUES 
-            ('Mesa 1', 'disponible'),
-            ('Mesa 2', 'disponible'),
-            ('Mesa 3', 'disponible');
+            INSERT INTO categorias (nombre, slug) VALUES 
+            ('Cafés & Bebidas', 'cafes'),
+            ('Acompañantes', 'acompanantes');
         `);
 
+        // Insertar productos asignando la categoría en minúsculas y sin acentos
         await db.query(`
             INSERT INTO productos (nombre, precio, categoria, imagen, disponible) VALUES 
-            ('Espresso', 4500, 'Cafés & Bebidas', '/img/espresso.jpg', TRUE),
-            ('Capuchino', 6000, 'Cafés & Bebidas', '/img/capuchino.jpg', TRUE),
-            ('Latte', 6500, 'Cafés & Bebidas', '/img/late.jpg', TRUE),
-            ('Croissant', 5000, 'Acompañantes', '/img/croissant.jpg', TRUE),
-            ('Empanada', 3000, 'Acompañantes', '/img/empanada.jpg', TRUE);
+            ('Espresso', 4500, 'cafes', '/img/espresso.jpg', TRUE),
+            ('Capuchino', 6000, 'cafes', '/img/capuchino.jpg', TRUE),
+            ('Latte', 6500, 'cafes', '/img/late.jpg', TRUE),
+            ('Croissant', 5000, 'acompanantes', '/img/croissant.jpg', TRUE),
+            ('Empanada', 3000, 'acompanantes', '/img/empanada.jpg', TRUE);
         `);
 
-        res.send('✅ Tablas y datos creados exitosamente en Aiven.');
+        res.send('✅ Categorías y productos sincronizados correctamente.');
     } catch (e) {
-        console.error('Error al configurar base de datos:', e);
+        console.error('Error en setup-db:', e);
         res.status(500).json({ error: e.message });
     }
 });
