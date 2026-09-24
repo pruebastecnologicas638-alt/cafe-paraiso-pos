@@ -108,21 +108,30 @@ function renderProducts(productsToRender) {
 }
 
 // Función conectada a los botones de categorías (Pills)
+// Función conectada a los botones de categorías (Pills)
 window.filtrarCategoria = function(catId) {
-    // Actualizar clase activa en los botones
+    // Actualizar clase activa en los botones de la interfaz
     const buttons = document.querySelectorAll('.category-pill');
     buttons.forEach(btn => btn.classList.remove('active'));
     
-    if (event && event.target) {
+    if (typeof event !== 'undefined' && event && event.target) {
         event.target.classList.add('active');
     }
 
-    if (catId === 'todas' || catId === 'all') {
+    // Si el filtro es "todas", mostrar todo el catálogo
+    if (!catId || catId === 'todas' || catId === 'all') {
         renderProducts(allProducts);
-    } else {
-        const filtrados = allProducts.filter(p => p.categoria_id == catId);
-        renderProducts(filtrados);
+        return;
     }
+
+    // Filtrar de forma flexible (compara id numérico, texto de categoría o slug)
+    const filtrados = allProducts.filter(p => {
+        const idCoincide = p.categoria_id == catId;
+        const nombreCoincide = p.categoria && p.categoria.toLowerCase() === String(catId).toLowerCase();
+        return idCoincide || nombreCoincide;
+    });
+
+    renderProducts(filtrados);
 };
 
 window.agregarAlCarrito = function(id, nombre, precio) {
