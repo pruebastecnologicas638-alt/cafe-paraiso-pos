@@ -59,6 +59,7 @@ app.get('/api/productos', async (req, res) => {
         const [productos] = await db.query('SELECT * FROM productos WHERE disponible = TRUE');
         res.json(productos);
     } catch (e) {
+        console.error('Error al consultar productos en MySQL:', err); // <-- AGREGA ESTA LÍNEA
         res.status(500).json({ error: e.message });
     }
 });
