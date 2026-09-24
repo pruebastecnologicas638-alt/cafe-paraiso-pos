@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Café Paraíso - Control de Pedidos y Caja</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #fcf8f2;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background-color: #5c3d2e;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .badge-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: white;
+        }
+        .main-container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        .orders-section {
+            flex: 1;
+        }
+        .sidebar {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .card-pedido {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-top: 4px solid #f39c12;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .tag-estado {
+            background: #f39c12;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        .items-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+        .items-list li {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .btn-pagar {
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-pagar:hover {
+            background-color: #27ae60;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>☕ Café Paraíso - Control de Pedidos y Caja</h1>
+        <div id="cajaStatusBadge" class="badge-status" style="background-color: #2ecc71;">Caja: ABIERTA</div>
+    </div>
+
+    <div class="main-container">
+        <div class="orders-section">
+            <h2>Pedidos en Tiempo Real</h2>
+            <div id="adminOrdersGrid" class="orders-grid"></div>
+        </div>
+
+        <div class="sidebar">
+            <h3>Gestión de Caja</h3>
+            <hr>
+            <div id="cajaActionArea">
+                <p>Monto Inicial: <strong>$0</strong></p>
+                <br>
+                <button class="btn-pagar" style="background:#5c3d2e; width:100%;" onclick="cerrarCaja(1)">Cerrar Caja del Día</button>
+            </div>
+        </div>
+    </div>
+<section id="sec-qr-mesas" class="container my-4">
+    <h3>Códigos QR de las Mesas</h3>
+    <button class="btn btn-primary mb-3" onclick="cargarQRMesas()">Ver / Generar QR</button>
+    <div id="contenedor-qr-mesas" class="row"></div>
+</section>
+    <script src="js/admin.js"></script>
+</body>
+</html>
