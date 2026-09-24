@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const db = require('./config/db');
+const QRCode = require('qrcode');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,6 +13,8 @@ const io = new Server(server, { cors: { origin: "*" } });
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const HOST_URL = process.env.BASE_URL || 'https://cafe-paraiso-pos.onrender.com';
 
 // Ruta de prueba
 app.get('/api/health', async (req, res) => {
@@ -29,14 +32,58 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-const PORT = 3000;
-server.listen(PORT, () => {
-    console.log(` Servidor corriendo en http://localhost:${PORT}`);
+// Ruta para poblar la base de datos en Aiven fácilmente
+app.get('/api/setup-db', async (req, res) => {
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS productos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL,
+                precio DECIMAL(10,2) NOT NULL,
+                categoria VARCHAR(50) NOT NULL,
+                imagen VARCHAR(255),
+                disponible BOOLEAN DEFAULT TRUE
+            );
+        `);
+
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS mesas (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                numero VARCHAR(20) NOT NULL,
+                estado VARCHAR(20) DEFAULT 'disponible'
+            );
+        `);
+
+        await db.query(`TRUNCATE TABLE productos;`);
+        await db.query(`TRUNCATE TABLE mesas;`);
+
+        await db.query(`
+            INSERT INTO mesas (numero, estado) VALUES 
+            ('Mesa 1', 'disponible'),
+            ('Mesa 2', 'disponible'),
+            ('Mesa 3', 'disponible');
+        `);
+
+        await db.query(`
+            INSERT INTO productos (nombre, precio, categoria, imagen, disponible) VALUES 
+            ('Espresso', 4500, 'Cafés & Bebidas', '/img/espresso.jpg', TRUE),
+            ('Capuchino', 6000, 'Cafés & Bebidas', '/img/capuchino.jpg', TRUE),
+            ('Latte', 6500, 'Cafés & Bebidas', '/img/late.jpg', TRUE),
+            ('Croissant', 5000, 'Acompañantes', '/img/croissant.jpg', TRUE),
+            ('Empanada', 3000, 'Acompañantes', '/img/empanada.jpg', TRUE);
+        `);
+
+        res.send('✅ Tablas y datos creados exitosamente en Aiven.');
+    } catch (e) {
+        console.error('Error al configurar base de datos:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
+
 // Obtener Mesas
 app.get('/api/mesas', async (req, res) => {
     try {
-        const [mesas] = await db.query('SELECT * FROM mesas ORDER BY numero ASC');
+        const [mesas] = await db.query('SELECT * FROM mesas ORDER BY id ASC');
         res.json(mesas);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -53,13 +100,13 @@ app.get('/api/categorias', async (req, res) => {
     }
 });
 
-// Obtener Productos
+// Obtener Productos (Error err arreglado a e)
 app.get('/api/productos', async (req, res) => {
     try {
         const [productos] = await db.query('SELECT * FROM productos WHERE disponible = TRUE');
         res.json(productos);
     } catch (e) {
-        console.error('Error al consultar productos en MySQL:', err); // <-- AGREGA ESTA LÍNEA
+        console.error('Error al consultar productos en MySQL:', e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -68,24 +115,20 @@ app.get('/api/productos', async (req, res) => {
 app.post('/api/pedidos', async (req, res) => {
     const { mesa_numero, items, total } = req.body;
     try {
-        // Obtener ID de Mesa
         const [mesas] = await db.query('SELECT id FROM mesas WHERE numero = ?', [mesa_numero]);
         if (mesas.length === 0) return res.status(404).json({ error: 'Mesa no encontrada' });
         const mesa_id = mesas[0].id;
 
-        // Obtener Caja Abierta actual
         const [cajas] = await db.query("SELECT id FROM cajas WHERE estado = 'abierta' LIMIT 1");
         if (cajas.length === 0) return res.status(400).json({ error: 'No hay ninguna caja abierta en este momento.' });
         const caja_id = cajas[0].id;
 
-        // Insertar Pedido
         const [result] = await db.query(
             'INSERT INTO pedidos (mesa_id, caja_id, estado, total) VALUES (?, ?, "pendiente", ?)',
             [mesa_id, caja_id, total]
         );
         const pedido_id = result.insertId;
 
-        // Insertar Detalles
         for (const item of items) {
             await db.query(
                 'INSERT INTO pedido_detalles (pedido_id, producto_id, cantidad, precio_unitario) VALUES (?, ?, ?, ?)',
@@ -93,10 +136,7 @@ app.post('/api/pedidos', async (req, res) => {
             );
         }
 
-        // Actualizar estado de la mesa
         await db.query("UPDATE mesas SET estado = 'ocupada' WHERE id = ?", [mesa_id]);
-
-        // Notificar en tiempo real por WebSockets
         io.emit('nuevo_pedido', { pedido_id, mesa_numero, total });
 
         res.json({ status: 'OK', pedido_id });
@@ -104,7 +144,8 @@ app.post('/api/pedidos', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-// Obtener Estado de Caja Activa
+
+// Estado de Caja
 app.get('/api/caja/estado', async (req, res) => {
     try {
         const [cajas] = await db.query("SELECT * FROM cajas WHERE estado = 'abierta' ORDER BY id DESC LIMIT 1");
@@ -140,7 +181,7 @@ app.post('/api/caja/cerrar', async (req, res) => {
     }
 });
 
-// Obtener Pedidos para Admin/Caja
+// Pedidos para Admin
 app.get('/api/admin/pedidos', async (req, res) => {
     try {
         const [pedidos] = await db.query(`
@@ -167,7 +208,7 @@ app.get('/api/admin/pedidos', async (req, res) => {
     }
 });
 
-// Actualizar Estado del Pedido
+// Actualizar Estado de Pedido
 app.put('/api/admin/pedidos/:id/estado', async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
@@ -186,31 +227,20 @@ app.put('/api/admin/pedidos/:id/estado', async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-// 1. Requerir la librería al inicio del archivo
-const QRCode = require('qrcode');
 
-// 2. Colocar la IP de tu PC para las pruebas desde el celular
-// Puedes ver tu IP ejecutando 'ipconfig' en la terminal (ejemplo: 192.168.1.15)
-const HOST_URL = process.env.BASE_URL || 'http://192.168.1.15:3000';
-
-// 3. Crear la ruta para consultar/generar los QR de las mesas
+// QR de Mesas
 app.get('/api/mesas/qr', async (req, res) => {
     try {
         const mesas = [
             { id: 1, numero: 'Mesa 1' },
             { id: 2, numero: 'Mesa 2' },
-            { id: 3, numero: 'Mesa 3' },
-            { id: 4, numero: 'Mesa 4' },
-            { id: 5, numero: 'Mesa 5' }
+            { id: 3, numero: 'Mesa 3' }
         ];
 
         const mesasConQR = await Promise.all(
             mesas.map(async (mesa) => {
                 const urlMenu = `${HOST_URL}/index.html?mesa=${mesa.id}`;
-                const qrImage = await QRCode.toDataURL(urlMenu, {
-                    width: 250,
-                    margin: 2
-                });
+                const qrImage = await QRCode.toDataURL(urlMenu, { width: 250, margin: 2 });
                 return { ...mesa, url: urlMenu, qrImage };
             })
         );
@@ -220,4 +250,9 @@ app.get('/api/mesas/qr', async (req, res) => {
         console.error('Error al generar QR:', error);
         res.status(500).json({ success: false, error: 'Error al generar los códigos QR' });
     }
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
