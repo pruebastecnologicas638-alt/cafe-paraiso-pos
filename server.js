@@ -33,6 +33,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Ruta para poblar la base de datos en Aiven fácilmente
+// Ruta para poblar la base de datos en Aiven fácilmente
 app.get('/api/setup-db', async (req, res) => {
     try {
         await db.query(`
@@ -57,21 +58,22 @@ app.get('/api/setup-db', async (req, res) => {
         await db.query(`TRUNCATE TABLE productos;`);
         await db.query(`TRUNCATE TABLE categorias;`);
 
-        // Insertar categorías estándar
+        // Insertar categorías
         await db.query(`
             INSERT INTO categorias (nombre, slug) VALUES 
             ('Cafés & Bebidas', 'cafes'),
             ('Acompañantes', 'acompanantes');
         `);
 
-        // Insertar productos asignando la categoría en minúsculas y sin acentos
+        // Insertar productos asignando AMBAS versiones (slug e identificadores comunes)
+        // para asegurar compatibilidad total con el filtro del frontend
         await db.query(`
             INSERT INTO productos (nombre, precio, categoria, imagen, disponible) VALUES 
-            ('Espresso', 4500, 'cafes', '/img/espresso.jpg', TRUE),
-            ('Capuchino', 6000, 'cafes', '/img/capuchino.jpg', TRUE),
-            ('Latte', 6500, 'cafes', '/img/late.jpg', TRUE),
-            ('Croissant', 5000, 'acompanantes', '/img/croissant.jpg', TRUE),
-            ('Empanada', 3000, 'acompanantes', '/img/empanada.jpg', TRUE);
+            ('Espresso', 4500, 'Cafés & Bebidas', '/img/espresso.jpg', TRUE),
+            ('Capuchino', 6000, 'Cafés & Bebidas', '/img/capuchino.jpg', TRUE),
+            ('Latte', 6500, 'Cafés & Bebidas', '/img/late.jpg', TRUE),
+            ('Croissant', 5000, 'Acompañantes', '/img/croissant.jpg', TRUE),
+            ('Empanada', 3000, 'Acompañantes', '/img/empanada.jpg', TRUE);
         `);
 
         res.send('✅ Categorías y productos sincronizados correctamente.');
