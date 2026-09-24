@@ -34,19 +34,9 @@ app.get('/api/health', async (req, res) => {
 
 // Ruta para poblar la base de datos en Aiven fácilmente
 // Ruta para poblar la base de datos en Aiven fácilmente
+// Ruta para poblar la base de datos en Aiven fácilmente
 app.get('/api/setup-db', async (req, res) => {
     try {
-        await db.query(`
-            CREATE TABLE IF NOT EXISTS productos (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nombre VARCHAR(100) NOT NULL,
-                precio DECIMAL(10,2) NOT NULL,
-                categoria VARCHAR(50) NOT NULL,
-                imagen VARCHAR(255),
-                disponible BOOLEAN DEFAULT TRUE
-            );
-        `);
-
         await db.query(`
             CREATE TABLE IF NOT EXISTS categorias (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -55,34 +45,44 @@ app.get('/api/setup-db', async (req, res) => {
             );
         `);
 
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS productos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL,
+                precio DECIMAL(10,2) NOT NULL,
+                categoria VARCHAR(50) NOT NULL,
+                categoria_id INT,
+                imagen VARCHAR(255),
+                disponible BOOLEAN DEFAULT TRUE
+            );
+        `);
+
         await db.query(`TRUNCATE TABLE productos;`);
         await db.query(`TRUNCATE TABLE categorias;`);
 
-        // Insertar categorías
+        // Insertar categorías con sus IDs explícitos (1 para Cafés, 2 para Acompañantes)
         await db.query(`
-            INSERT INTO categorias (nombre, slug) VALUES 
-            ('Cafés & Bebidas', 'cafes'),
-            ('Acompañantes', 'acompanantes');
+            INSERT INTO categorias (id, nombre, slug) VALUES 
+            (1, 'Cafés & Bebidas', 'cafes'),
+            (2, 'Acompañantes', 'acompanantes');
         `);
 
-        // Insertar productos asignando AMBAS versiones (slug e identificadores comunes)
-        // para asegurar compatibilidad total con el filtro del frontend
+        // Insertar productos enlazando categoria_id
         await db.query(`
-            INSERT INTO productos (nombre, precio, categoria, imagen, disponible) VALUES 
-            ('Espresso', 4500, 'Cafés & Bebidas', '/img/espresso.jpg', TRUE),
-            ('Capuchino', 6000, 'Cafés & Bebidas', '/img/capuchino.jpg', TRUE),
-            ('Latte', 6500, 'Cafés & Bebidas', '/img/late.jpg', TRUE),
-            ('Croissant', 5000, 'Acompañantes', '/img/croissant.jpg', TRUE),
-            ('Empanada', 3000, 'Acompañantes', '/img/empanada.jpg', TRUE);
+            INSERT INTO productos (nombre, precio, categoria, categoria_id, imagen, disponible) VALUES 
+            ('Espresso', 4500, 'Cafés & Bebidas', 1, '/img/espresso.jpg', TRUE),
+            ('Capuchino', 6000, 'Cafés & Bebidas', 1, '/img/capuchino.jpg', TRUE),
+            ('Latte', 6500, 'Cafés & Bebidas', 1, '/img/late.jpg', TRUE),
+            ('Croissant', 5000, 'Acompañantes', 2, '/img/croissant.jpg', TRUE),
+            ('Empanada', 3000, 'Acompañantes', 2, '/img/empanada.jpg', TRUE);
         `);
 
-        res.send('✅ Categorías y productos sincronizados correctamente.');
+        res.send('✅ Categorías y productos sincronizados con categoria_id correctamente.');
     } catch (e) {
         console.error('Error en setup-db:', e);
         res.status(500).json({ error: e.message });
     }
 });
-
 // Obtener Mesas
 app.get('/api/mesas', async (req, res) => {
     try {
