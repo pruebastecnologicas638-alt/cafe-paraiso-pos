@@ -32,13 +32,16 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// Ruta para poblar la base de datos en Aiven fácilmente
-// Ruta para poblar la base de datos en Aiven fácilmente
-// Ruta para poblar la base de datos en Aiven fácilmente
+// Ruta para reestructurar y poblar la base de datos limpiamente
 app.get('/api/setup-db', async (req, res) => {
     try {
+        // Eliminar tablas previas para asegurar la correcta creación de columnas
+        await db.query(`DROP TABLE IF EXISTS pedido_detalles;`);
+        await db.query(`DROP TABLE IF EXISTS productos;`);
+        await db.query(`DROP TABLE IF EXISTS categorias;`);
+
         await db.query(`
-            CREATE TABLE IF NOT EXISTS categorias (
+            CREATE TABLE categorias (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nombre VARCHAR(50) NOT NULL,
                 slug VARCHAR(50) NOT NULL
@@ -46,28 +49,25 @@ app.get('/api/setup-db', async (req, res) => {
         `);
 
         await db.query(`
-            CREATE TABLE IF NOT EXISTS productos (
+            CREATE TABLE productos (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 nombre VARCHAR(100) NOT NULL,
                 precio DECIMAL(10,2) NOT NULL,
                 categoria VARCHAR(50) NOT NULL,
-                categoria_id INT,
+                categoria_id INT NOT NULL,
                 imagen VARCHAR(255),
                 disponible BOOLEAN DEFAULT TRUE
             );
         `);
 
-        await db.query(`TRUNCATE TABLE productos;`);
-        await db.query(`TRUNCATE TABLE categorias;`);
-
-        // Insertar categorías con sus IDs explícitos (1 para Cafés, 2 para Acompañantes)
+        // Insertar categorías con sus IDs
         await db.query(`
             INSERT INTO categorias (id, nombre, slug) VALUES 
             (1, 'Cafés & Bebidas', 'cafes'),
             (2, 'Acompañantes', 'acompanantes');
         `);
 
-        // Insertar productos enlazando categoria_id
+        // Insertar productos asignando la relación por ID y texto
         await db.query(`
             INSERT INTO productos (nombre, precio, categoria, categoria_id, imagen, disponible) VALUES 
             ('Espresso', 4500, 'Cafés & Bebidas', 1, '/img/espresso.jpg', TRUE),
@@ -77,7 +77,7 @@ app.get('/api/setup-db', async (req, res) => {
             ('Empanada', 3000, 'Acompañantes', 2, '/img/empanada.jpg', TRUE);
         `);
 
-        res.send('✅ Categorías y productos sincronizados con categoria_id correctamente.');
+        res.send('✅ Base de datos recreada y sincronizada correctamente con categoria_id.');
     } catch (e) {
         console.error('Error en setup-db:', e);
         res.status(500).json({ error: e.message });
